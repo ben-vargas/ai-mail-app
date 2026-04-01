@@ -328,6 +328,63 @@ export const MODEL_TIER_LABELS: Record<ModelTier, string> = {
   opus: "Opus (most capable)",
 };
 
+export const LlmProviderIdSchema = z.enum(["anthropic", "claude-sdk"]);
+export type LlmProviderId = z.infer<typeof LlmProviderIdSchema>;
+
+export const LlmAuthModeSchema = z.enum(["api_key", "claude_login", "unknown"]);
+export type LlmAuthMode = z.infer<typeof LlmAuthModeSchema>;
+
+export const InternalLlmModeSchema = z.enum([
+  "anthropic-only",
+  "sdk-only",
+  "prefer-anthropic-with-sdk-fallback",
+  "prefer-sdk-with-anthropic-fallback",
+]);
+export type InternalLlmMode = z.infer<typeof InternalLlmModeSchema>;
+
+export const InternalLlmConfigSchema = z.object({
+  mode: InternalLlmModeSchema.default("prefer-anthropic-with-sdk-fallback"),
+});
+export type InternalLlmConfig = z.infer<typeof InternalLlmConfigSchema>;
+
+export const LlmCapabilitySchema = z.enum([
+  "basic-text",
+  "structured-output",
+  "streaming",
+  "tool-use",
+  "web-search",
+  "usage-accounting",
+]);
+export type LlmCapability = z.infer<typeof LlmCapabilitySchema>;
+
+export const LlmProviderStatusSchema = z.object({
+  providerId: LlmProviderIdSchema,
+  available: z.boolean(),
+  authMode: LlmAuthModeSchema,
+  reason: z.string().optional(),
+  capabilities: z.array(LlmCapabilitySchema),
+});
+export type LlmProviderStatus = z.infer<typeof LlmProviderStatusSchema>;
+
+export const LlmTaskAvailabilitySchema = z.object({
+  coreGeneration: z.boolean(),
+  streaming: z.boolean(),
+  toolUse: z.boolean(),
+  webSearch: z.boolean(),
+  usageAccounting: z.boolean(),
+});
+export type LlmTaskAvailability = z.infer<typeof LlmTaskAvailabilitySchema>;
+
+export const InternalLlmReadinessSchema = z.object({
+  hasAnthropicApiKey: z.boolean(),
+  hasInternalLlm: z.boolean(),
+  preferredProvider: LlmProviderIdSchema.nullable(),
+  fallbackProvider: LlmProviderIdSchema.nullable(),
+  providers: z.array(LlmProviderStatusSchema),
+  tasks: LlmTaskAvailabilitySchema,
+});
+export type InternalLlmReadiness = z.infer<typeof InternalLlmReadinessSchema>;
+
 // Per-feature model configuration
 export const ModelConfigSchema = z.object({
   analysis: ModelTierSchema.default("sonnet"),
@@ -365,6 +422,7 @@ export const ConfigSchema = z.object({
   // via getModelIdForFeature(). Kept in the schema so existing config files parse without error.
   model: z.string().default("claude-sonnet-4-20250514"),
   modelConfig: ModelConfigSchema.optional(),
+  internalLlm: InternalLlmConfigSchema.optional(),
   dryRun: z.boolean().default(false),
   anthropicApiKey: z.string().optional(),
   analysisPrompt: z.string().default(DEFAULT_ANALYSIS_PROMPT),

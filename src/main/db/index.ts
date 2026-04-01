@@ -379,6 +379,10 @@ const NUMBERED_MIGRATIONS: Migration[] = [
           caller TEXT NOT NULL,
           email_id TEXT,
           account_id TEXT,
+          provider_id TEXT NOT NULL DEFAULT 'anthropic',
+          auth_mode TEXT,
+          fallback_used INTEGER NOT NULL DEFAULT 0,
+          cost_estimated INTEGER NOT NULL DEFAULT 0,
           input_tokens INTEGER NOT NULL,
           output_tokens INTEGER NOT NULL,
           cache_read_tokens INTEGER DEFAULT 0,
@@ -391,6 +395,26 @@ const NUMBERED_MIGRATIONS: Migration[] = [
         CREATE INDEX IF NOT EXISTS idx_llm_calls_created ON llm_calls(created_at);
         CREATE INDEX IF NOT EXISTS idx_llm_calls_caller ON llm_calls(caller);
       `);
+    },
+  },
+  {
+    version: 2,
+    name: "add_llm_provider_metadata",
+    up: (db) => {
+      const tableInfo = db.prepare("PRAGMA table_info(llm_calls)").all() as Array<{ name: string }>;
+      const columns = new Set(tableInfo.map((column) => column.name));
+      if (!columns.has("provider_id")) {
+        db.exec("ALTER TABLE llm_calls ADD COLUMN provider_id TEXT NOT NULL DEFAULT 'anthropic'");
+      }
+      if (!columns.has("auth_mode")) {
+        db.exec("ALTER TABLE llm_calls ADD COLUMN auth_mode TEXT");
+      }
+      if (!columns.has("fallback_used")) {
+        db.exec("ALTER TABLE llm_calls ADD COLUMN fallback_used INTEGER NOT NULL DEFAULT 0");
+      }
+      if (!columns.has("cost_estimated")) {
+        db.exec("ALTER TABLE llm_calls ADD COLUMN cost_estimated INTEGER NOT NULL DEFAULT 0");
+      }
     },
   },
 ];

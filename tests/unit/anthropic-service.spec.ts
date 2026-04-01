@@ -215,6 +215,10 @@ test.describe("AnthropicService", () => {
     expect(row.caller).toBe("test-cost");
     expect(row.email_id).toBe("email-123");
     expect(row.account_id).toBe("acct-456");
+    expect(row.provider_id).toBe("anthropic");
+    expect(row.auth_mode).toBe("api_key");
+    expect(row.fallback_used).toBe(0);
+    expect(row.cost_estimated).toBe(0);
     expect(row.input_tokens).toBe(100);
     expect(row.output_tokens).toBe(50);
     expect(row.cache_read_tokens).toBe(20);

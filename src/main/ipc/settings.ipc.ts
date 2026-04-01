@@ -3,6 +3,7 @@ import Store from "electron-store";
 import {
   type Config,
   type EAConfig,
+  type InternalLlmReadiness,
   type IpcResponse,
   type ThemePreference,
   type ModelConfig,
@@ -18,7 +19,12 @@ import {
 } from "../../shared/types";
 import { resetAnalyzer } from "./analysis.ipc";
 import { resetArchiveReadyAnalyzer } from "./archive-ready.ipc";
-import { resetClient, getUsageStats, getCallHistory } from "../services/anthropic-service";
+import {
+  getCallHistory,
+  getUsageStats,
+  resetInternalLlmState,
+} from "../services/anthropic-service";
+import { getInternalLlmReadiness } from "../services/llm/readiness";
 import { prefetchService } from "../services/prefetch-service";
 import { agentCoordinator } from "../agents/agent-coordinator";
 import {
@@ -51,6 +57,9 @@ function getStore(): Store<{ config: Config }> {
           maxEmails: 50,
           model: "claude-sonnet-4-20250514",
           modelConfig: DEFAULT_MODEL_CONFIG,
+          internalLlm: {
+            mode: "prefer-anthropic-with-sdk-fallback",
+          },
           dryRun: false,
           analysisPrompt: DEFAULT_ANALYSIS_PROMPT,
           draftPrompt: DEFAULT_DRAFT_PROMPT,
@@ -184,6 +193,20 @@ export function registerSettingsIpc(): void {
     }
   });
 
+  ipcMain.handle(
+    "settings:get-llm-readiness",
+    async (): Promise<IpcResponse<InternalLlmReadiness>> => {
+      try {
+        return { success: true, data: await getInternalLlmReadiness(getConfig()) };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : "Unknown error",
+        };
+      }
+    },
+  );
+
   // Update config
   ipcMain.handle("settings:set", async (_, config: Partial<Config>): Promise<IpcResponse<void>> => {
     try {
@@ -272,8 +295,8 @@ export function registerSettingsIpc(): void {
 
       // Reset cached analyzer/service instances when model config or API key changes,
       // since they hold Anthropic client instances that capture the key at construction.
-      if ("modelConfig" in config || "anthropicApiKey" in config) {
-        resetClient();
+      if ("modelConfig" in config || "anthropicApiKey" in config || "internalLlm" in config) {
+        resetInternalLlmState();
         resetAnalyzer();
         resetArchiveReadyAnalyzer();
         prefetchService.reset();

@@ -184,6 +184,10 @@ test.describe("Numbered migration system", () => {
               caller TEXT NOT NULL,
               email_id TEXT,
               account_id TEXT,
+              provider_id TEXT NOT NULL DEFAULT 'anthropic',
+              auth_mode TEXT,
+              fallback_used INTEGER NOT NULL DEFAULT 0,
+              cost_estimated INTEGER NOT NULL DEFAULT 0,
               input_tokens INTEGER NOT NULL,
               output_tokens INTEGER NOT NULL,
               cache_read_tokens INTEGER DEFAULT 0,
@@ -210,6 +214,8 @@ test.describe("Numbered migration system", () => {
     expect(columnNames).toContain("model");
     expect(columnNames).toContain("caller");
     expect(columnNames).toContain("cost_cents");
+    expect(columnNames).toContain("provider_id");
+    expect(columnNames).toContain("auth_mode");
     expect(columnNames).toContain("cache_read_tokens");
     expect(columnNames).toContain("cache_create_tokens");
     expect(columnNames).toContain("success");

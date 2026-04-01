@@ -210,6 +210,7 @@ const api = {
       ipcRenderer.invoke("settings:set", config),
     validateApiKey: (apiKey: string): Promise<unknown> =>
       ipcRenderer.invoke("settings:validate-api-key", { apiKey }),
+    getLlmReadiness: (): Promise<unknown> => ipcRenderer.invoke("settings:get-llm-readiness"),
     getPrompts: (): Promise<unknown> => ipcRenderer.invoke("settings:get-prompts"),
     setPrompts: (prompts: {
       analysisPrompt?: string;

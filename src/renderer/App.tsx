@@ -1293,11 +1293,11 @@ export default function App() {
           hasCredentials: boolean;
           hasTokens: boolean;
           hasAnthropicKey: boolean;
+          hasInternalLlm: boolean;
         }>,
       ) => {
         if (result.success) {
-          // Credentials are always bundled at build time — only check API key and tokens
-          setNeedsSetup(!result.data.hasAnthropicKey || !result.data.hasTokens);
+          setNeedsSetup(!result.data.hasInternalLlm || !result.data.hasTokens);
         } else {
           setNeedsSetup(true);
         }

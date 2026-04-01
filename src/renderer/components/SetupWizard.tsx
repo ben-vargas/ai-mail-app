@@ -41,16 +41,21 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
   useEffect(() => {
     (
       window.api.gmail.checkAuth() as Promise<
-        IpcResponse<{ hasCredentials: boolean; hasTokens: boolean; hasAnthropicKey: boolean }>
+        IpcResponse<{
+          hasCredentials: boolean;
+          hasTokens: boolean;
+          hasAnthropicKey: boolean;
+          hasInternalLlm: boolean;
+        }>
       >
     )
       .then((authResult) => {
         if (authResult.success) {
-          const { hasCredentials, hasAnthropicKey, hasTokens } = authResult.data;
+          const { hasCredentials, hasInternalLlm, hasTokens } = authResult.data;
 
           const flow: Step[] = [];
           if (!hasCredentials) flow.push("credentials");
-          if (!hasAnthropicKey) flow.push("apikey");
+          if (!hasInternalLlm) flow.push("apikey");
           if (!hasTokens) flow.push("oauth");
           flow.push("extensions");
           flow.push("analytics");
@@ -58,7 +63,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
 
           if (!hasCredentials) {
             setStep("credentials");
-          } else if (!hasAnthropicKey) {
+          } else if (!hasInternalLlm) {
             setStep("apikey");
           } else if (!hasTokens) {
             setStep("oauth");
@@ -133,8 +138,9 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
           hasCredentials: boolean;
           hasTokens: boolean;
           hasAnthropicKey: boolean;
+          hasInternalLlm: boolean;
         }>;
-        if (authResult.success && authResult.data.hasTokens) {
+        if (authResult.success && authResult.data.hasTokens && authResult.data.hasInternalLlm) {
           await enterExtensionsStep();
         } else {
           setStep("oauth");
@@ -340,8 +346,9 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
                 Anthropic API Key
               </h2>
               <p className="text-gray-600 dark:text-gray-400 mb-6">
-                Exo uses Claude to analyze your emails, generate drafts, and look up sender
-                information. You'll need an Anthropic API key to enable these features.
+                Exo needs internal AI access for analysis, drafting, and sender lookup. If Claude
+                Code is already authenticated locally this step is skipped automatically; otherwise
+                add an Anthropic API key here.
               </p>
 
               <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg mb-6">

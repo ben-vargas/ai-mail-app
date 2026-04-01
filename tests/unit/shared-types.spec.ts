@@ -14,6 +14,7 @@ import {
   resolveModelId,
   MODEL_TIER_IDS,
   DEFAULT_MODEL_CONFIG,
+  InternalLlmConfigSchema,
   DEFAULT_ANALYSIS_PROMPT,
   DEFAULT_DRAFT_PROMPT,
   type ModelTier,
@@ -187,6 +188,16 @@ test.describe("ModelConfig", () => {
       analysis: "gpt-4", // not a valid tier
     });
     expect(result.success).toBe(false);
+  });
+});
+
+test.describe("InternalLlmConfig", () => {
+  test("applies defaults for missing fields", () => {
+    const result = InternalLlmConfigSchema.safeParse({});
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.mode).toBe("prefer-anthropic-with-sdk-fallback");
+    }
   });
 });
 
