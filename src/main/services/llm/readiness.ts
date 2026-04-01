@@ -6,6 +6,14 @@ function hasAnthropicApiKey(config: Config): boolean {
   return Boolean(process.env.ANTHROPIC_API_KEY || config.anthropicApiKey);
 }
 
+function providerIsAvailable(
+  providerId: "anthropic" | "claude-sdk",
+  anthropicAvailable: boolean,
+  sdkAvailable: boolean,
+): boolean {
+  return providerId === "anthropic" ? anthropicAvailable : sdkAvailable;
+}
+
 function getTaskAvailability(hasAnthropic: boolean, hasSdk: boolean): LlmTaskAvailability {
   return {
     coreGeneration: hasAnthropic || hasSdk,
@@ -32,10 +40,12 @@ export async function getInternalLlmReadiness(config: Config): Promise<InternalL
 
   const taskAvailability = getTaskAvailability(anthropicAvailable, sdkStatus.available);
   const preferredProvider = providerOrder.find((providerId) =>
-    providerId === "anthropic" ? anthropicAvailable : sdkStatus.available,
+    providerIsAvailable(providerId, anthropicAvailable, sdkStatus.available),
   );
   const fallbackProvider = providerOrder.find(
-    (providerId) => providerId !== preferredProvider && (providerId === "anthropic" ? anthropicAvailable : sdkStatus.available),
+    (providerId) =>
+      providerId !== preferredProvider &&
+      providerIsAvailable(providerId, anthropicAvailable, sdkStatus.available),
   );
 
   return {

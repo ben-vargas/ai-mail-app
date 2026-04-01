@@ -3,11 +3,15 @@ import type { Config } from "../../../shared/types";
 import { createLogger } from "../logger";
 import {
   createAnthropicMessage,
-  hasConfiguredAnthropicAccess,
+  hasAnthropicCredentials,
   recordLlmCall,
   type CreateOptions,
 } from "./providers/anthropic-provider";
-import { claudeSdkProvider } from "./providers/claude-sdk-provider";
+import {
+  ClaudeSdkAuthError,
+  claudeSdkProvider,
+  determineClaudeSdkAuthMode,
+} from "./providers/claude-sdk-provider";
 import { decideRoute, extractRequestFeatures } from "./provider-policy";
 import type { LlmExecutionRequest, LlmProviderResult } from "./types";
 
@@ -17,9 +21,13 @@ function shouldRecordFallback(attemptIndex: number): boolean {
   return attemptIndex > 0;
 }
 
+function shouldAttemptFallbackAfterError(error: unknown): boolean {
+  return error instanceof ClaudeSdkAuthError;
+}
+
 async function isProviderAvailable(providerId: "anthropic" | "claude-sdk", config: Config): Promise<boolean> {
   if (providerId === "anthropic") {
-    return hasConfiguredAnthropicAccess(config.anthropicApiKey);
+    return hasAnthropicCredentials(config.anthropicApiKey);
   }
   const availability = await claudeSdkProvider.isAvailable(config);
   return availability.available;
@@ -87,12 +95,17 @@ export async function createCompatibilityMessage(
           success: false,
           errorMessage: error instanceof Error ? error.message : String(error),
           providerId: "claude-sdk",
-          authMode: process.env.ANTHROPIC_API_KEY || config.anthropicApiKey ? "api_key" : "claude_login",
+          authMode: determineClaudeSdkAuthMode({
+            apiKeyConfigured: Boolean(process.env.ANTHROPIC_API_KEY || config.anthropicApiKey),
+          }),
           fallbackUsed: shouldRecordFallback(attemptIndex),
           costEstimated: false,
         });
       }
-      throw error;
+      if (!shouldAttemptFallbackAfterError(error)) {
+        throw error;
+      }
+      continue;
     }
   }
 

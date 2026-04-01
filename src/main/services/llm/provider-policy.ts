@@ -1,4 +1,4 @@
-import type { Config, InternalLlmMode, LlmProviderId, ModelConfig } from "../../../shared/types";
+import type { Config, InternalLlmMode, LlmProviderId } from "../../../shared/types";
 import type { LlmExecutionRequest, LlmRequestFeatures, LlmRouteDecision } from "./types";
 
 const TOOL_ONLY_PROVIDER: LlmProviderId = "anthropic";
@@ -53,9 +53,4 @@ export function decideRoute(request: LlmExecutionRequest): LlmRouteDecision {
     fallbackProviderId: attemptedProviderIds[1] ?? null,
     attemptedProviderIds,
   };
-}
-
-export function resolveProviderModelId(_feature: keyof ModelConfig, config: Config): string | null {
-  void config;
-  return null;
 }

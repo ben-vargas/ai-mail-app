@@ -90,7 +90,7 @@ let _defaultClient: Anthropic | null = null;
 let _db: DatabaseInstance | null = null;
 let _insertStmt: ReturnType<DatabaseInstance["prepare"]> | null = null;
 
-export function hasConfiguredAnthropicAccess(apiKey?: string): boolean {
+export function hasAnthropicCredentials(apiKey?: string): boolean {
   return Boolean(_anthropicClient || process.env.ANTHROPIC_API_KEY || apiKey);
 }
 
@@ -200,7 +200,7 @@ export function recordLlmCall(params: {
       params.emailId,
       params.accountId,
       params.providerId ?? "anthropic",
-      params.authMode ?? "api_key",
+      params.authMode ?? "unknown",
       params.fallbackUsed ? 1 : 0,
       params.costEstimated ? 1 : 0,
       inputTokens,

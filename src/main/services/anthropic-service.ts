@@ -6,6 +6,7 @@
 import type { MessageCreateParamsNonStreaming, Message } from "@anthropic-ai/sdk/resources/messages";
 import { ConfigSchema } from "../../shared/types";
 import { createCompatibilityMessage } from "./llm/facade";
+import { createLogger } from "./logger";
 import {
   _setClientForTesting,
   createAnthropicMessage,
@@ -33,6 +34,8 @@ export {
 };
 export type { CreateOptions, LlmCallRecord, UsageStats };
 
+const log = createLogger("anthropic-service");
+
 export async function createMessage(
   params: MessageCreateParamsNonStreaming,
   options: CreateOptions,
@@ -41,6 +44,7 @@ export async function createMessage(
     const { getConfig } = await import("../ipc/settings.ipc");
     return createCompatibilityMessage(params, options, getConfig());
   } catch {
+    log.warn("Failed to load settings config, using schema defaults for LLM routing");
     return createCompatibilityMessage(params, options, ConfigSchema.parse({}));
   }
 }

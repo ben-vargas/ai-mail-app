@@ -1,5 +1,6 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { Message, MessageCreateParamsNonStreaming } from "@anthropic-ai/sdk/resources/messages";
+import { randomUUID } from "crypto";
 import type { Config } from "../../../../shared/types";
 import { createLogger } from "../../logger";
 import { buildClaudeSdkEnv, resolvedClaudeSdkCliPath, spawnClaudeSdkProcess } from "../claude-sdk-runtime";
@@ -21,6 +22,27 @@ type ProbeCache = {
 };
 
 let probeCache: ProbeCache | null = null;
+
+export class ClaudeSdkAuthError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ClaudeSdkAuthError";
+  }
+}
+
+export function determineClaudeSdkAuthMode(params: {
+  apiKeyConfigured: boolean;
+  account?: { apiKeySource?: string; tokenSource?: string } | null;
+}): "api_key" | "claude_login" | "unknown" {
+  if (params.apiKeyConfigured || params.account?.apiKeySource) return "api_key";
+  if (params.account?.tokenSource) return "claude_login";
+  return "unknown";
+}
+
+function looksLikeClaudeSdkAuthError(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return normalized.includes("not logged in") || normalized.includes("/login") || normalized.includes("auth");
+}
 
 function messageContentToText(content: MessageCreateParamsNonStreaming["messages"][number]["content"]): string {
   if (typeof content === "string") return content;
@@ -55,7 +77,7 @@ function buildPrompt(params: MessageCreateParamsNonStreaming): { prompt: string;
 
 function makeCompatibleMessage(model: string, text: string, usage: Record<string, number>): Message {
   return {
-    id: `msg_sdk_${Date.now()}`,
+    id: `msg_sdk_${randomUUID()}`,
     type: "message",
     role: "assistant",
     content: [{ type: "text", text }],
@@ -93,7 +115,10 @@ async function runAvailabilityProbe(model: string, timeoutMs: number): Promise<L
     return {
       providerId: "claude-sdk",
       available: true,
-      authMode: account.apiKeySource ? "api_key" : account.tokenSource ? "claude_login" : "unknown",
+      authMode: determineClaudeSdkAuthMode({
+        apiKeyConfigured: Boolean(process.env.ANTHROPIC_API_KEY),
+        account,
+      }),
       capabilities: [...CAPABILITIES],
     };
   } catch (error) {
@@ -124,7 +149,7 @@ export const claudeSdkProvider: LlmProvider = {
       return probeCache.value;
     }
 
-    const value = await runAvailabilityProbe(config.modelConfig?.drafts ? config.model : config.model, 7_500);
+    const value = await runAvailabilityProbe(config.model, 7_500);
     probeCache = { value, expiresAt: Date.now() + PROBE_TTL_MS };
     return value;
   },
@@ -156,7 +181,15 @@ export const claudeSdkProvider: LlmProvider = {
       for await (const message of q) {
         if (message.type !== "result") continue;
         if (message.subtype !== "success") {
-          throw new Error(message.errors?.join("\n") || `Claude SDK request failed: ${message.subtype}`);
+          const errorMessage =
+            message.errors?.join("\n") || `Claude SDK request failed: ${message.subtype}`;
+          if (looksLikeClaudeSdkAuthError(errorMessage)) {
+            throw new ClaudeSdkAuthError(errorMessage);
+          }
+          throw new Error(errorMessage);
+        }
+        if (looksLikeClaudeSdkAuthError(message.result)) {
+          throw new ClaudeSdkAuthError(message.result);
         }
 
         const usage = {
@@ -169,7 +202,9 @@ export const claudeSdkProvider: LlmProvider = {
         return {
           message: makeCompatibleMessage(request.params.model, message.result, usage),
           providerId: "claude-sdk",
-          authMode: process.env.ANTHROPIC_API_KEY || request.config.anthropicApiKey ? "api_key" : "claude_login",
+          authMode: determineClaudeSdkAuthMode({
+            apiKeyConfigured: Boolean(process.env.ANTHROPIC_API_KEY || request.config.anthropicApiKey),
+          }),
           usage,
           durationMs: Date.now() - startTime,
           costCents: typeof message.total_cost_usd === "number" ? message.total_cost_usd * 100 : undefined,

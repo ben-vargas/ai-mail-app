@@ -347,7 +347,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
               </h2>
               <p className="text-gray-600 dark:text-gray-400 mb-6">
                 Exo needs internal AI access for analysis, drafting, and sender lookup. If Claude
-                Code is already authenticated locally this step is skipped automatically; otherwise
+                Code is already authenticated locally this step is skipped automatically; otherwise,
                 add an Anthropic API key here.
               </p>
 
